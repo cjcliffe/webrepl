@@ -17,6 +17,32 @@
     font: 20px/1.5 sans-serif;
   }
 
+  .main_container {  
+    display:inline-block; 
+    vertical-align:top;
+  }
+
+  .terminal {
+    border: 1px solid #AFAFAF;
+    border-radius: 5px;
+    margin: 5px;
+    padding: 2px;
+  }
+  
+  .connect_form {
+    padding:5px;
+    font: 12px sans-serif;
+    color: #AFAFAF;
+  }
+  
+  .connect_form * {
+      margin-left: 4px;
+  }
+
+  .connect_form input {
+      margin-right: 10px;
+  }
+  
 /*
   .terminal {
     float: left;
@@ -34,9 +60,18 @@
 */
 
   .file-box {
-    margin: 4px;
-    padding: 4px;
+    border: 1px solid #AFAFAF;
+    border-radius: 5px;
+    margin: 6px;
+    padding: 6px;
     background: #888;
+    display:inline-block; 
+    vertical-align:top;
+    width:230px;
+  }
+
+  .file-box * {
+      margin: 4px;
   }
 </style>
 <script src="term.js"></script>
@@ -44,17 +79,20 @@
 </head>
 <body>
 
-<div style="display:inline-block; vertical-align:top;">
-<form>
-<input type="text" name="webrepl_url" id="url" value="ws://192.168.4.1:8266/" />
-<input type="submit" id="button" value="Connect" onclick="button_click(); return false;" />
-</form>
+<div style="main_container">
+<div class="connect_form">
+  <form>
+    URL: <input type="text" name="webrepl_url" id="url" value="ws://192.168.4.1:8266/" />
+    Password: <input type="password" name="password" id="password" value="" />
+    Save: <input type="checkbox" name="save" id="save" onchange="toggle_save();" />
+    <input type="submit" id="button" value="Connect" onclick="button_click(); return false;" />
+  </form>
+</div>
+
 <div id="term">
 </div>
-</div>
 
-<div id="file-boxes" style="display:inline-block; vertical-align:top; width:230px;">
-
+<div id="file-boxes">
   <div class="file-box">
     <strong>Send a file</strong>
     <input type="file" id="put-file-select" />
@@ -70,15 +108,15 @@
 
   <div class="file-box" id="file-status"><span style="color:#707070">(file operation status)</span></div>
 
-</div>
+</div><!-- file_boxes -->
+</div><!-- main_container -->
 
 <br clear="both" />
 <i>Terminal widget should be focused (text cursor visible) to accept input. Click on it if not.</i><br/>
 <i>To paste, press Ctrl+A, then Ctrl+V</i>
 </body>
 
-<script>
-;
+<script type="text/javascript">
 
 var term;
 var ws;
@@ -107,6 +145,29 @@ function calculate_size(win) {
       });
       term.open(document.getElementById("term"));
       show_https_warning();
+      
+      var saved_url = localStorage.getItem('url');
+      var saved_pwd = localStorage.getItem('pwd');
+      
+      var url_elem = document.getElementById('url');
+      var pwd_elem = document.getElementById('password');      
+      var save_elem = document.getElementById('save');
+      
+      var saved = false;
+
+      if (!!saved_url && saved_url != '') {
+          url_elem.value = saved_url;
+          saved = true;
+      }
+      if (!!saved_pwd && saved_pwd != '') {
+          pwd_elem.value = saved_pwd;
+          saved = true;
+      }
+      
+      if (saved) {
+          save_elem.checked = true;
+      }
+      
     };
     window.addEventListener('resize', function() {
         var size = calculate_size(self);
@@ -148,6 +209,15 @@ function update_file_status(s) {
     document.getElementById('file-status').innerHTML = s;
 }
 
+function toggle_save() {
+    var save = document.getElementById("save");
+
+    // wipe if unchecked
+    if (!save.checked) {
+        window.localStorage.clear();
+    }
+}
+
 function connect(url) {
     ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
@@ -167,6 +237,21 @@ function connect(url) {
         term.focus();
         term.element.focus();
         term.write('\x1b[31mWelcome to MicroPython!\x1b[m\r\n');
+        
+        var url_elem = document.getElementById("url");
+        var pwd_elem = document.getElementById("password");
+        var save_elem = document.getElementById("save");
+
+        // send password
+        if (pwd_elem.value != "") {
+            ws.send(pwd_elem.value + "\n");
+        }
+        
+        // store for later
+        if (save) {
+            window.localStorage.setItem("url",url_elem.value);
+            window.localStorage.setItem("pwd",pwd_elem.value);
+        }
 
         ws.onmessage = function(event) {
             if (event.data instanceof ArrayBuffer) {
